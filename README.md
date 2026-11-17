@@ -39,8 +39,9 @@ Character Creator look with full controller support, and ships Director, Dungeon
   from each piece's name.
 - **Company stores:** a store with its own catalog, limited to jobs, on duty only, free if you want.
 - **Outfit wardrobes:** company outfits worn with 1 click, a minimum rank per outfit and a "Back to my clothes" button.
-- **Admin Mode** inside the store: block or restrict any category, piece or color to jobs or characters, turn a piece
-  into an exclusive inventory item, and set tattoo prices in batches.
+- **Admin Mode** inside every store: block or restrict any category, piece, color or haircut to jobs or characters,
+  turn a piece into an exclusive inventory item, and set tattoo prices in batches.
+- **View buttons:** hide the clothes in the tattoo studio, and hide head props or the shirt in the barber shop.
 - **Try-on animations** for each kind of piece.
 - **Mask fix:** the face no longer clips through masks.
 - **Director cards:** open stores, goals, disguises and company outfits in scenarios and live events.
@@ -97,6 +98,9 @@ manifest.
 - On a sex change, the new body's clothes and hair are picked in the clinic at no extra cost. Tattoos that do not
   exist on the new body are lost.
 - The player pays in cash or, if `Config.AllowBank` is on, by bank.
+- The barber shop has two view buttons, on screen only: **Remove head props** (takes off the mask, glasses and hat
+  to see the hair and face) and **Hide clothes** (takes off the jacket and shirt and shows bare arms, to see the chest
+  hair).
 - Every store can be set to **No map icon**: it works the same, but it does not show on the map or on the Director's
   GPS. Useful for hidden or roleplay-only stores.
 
@@ -109,7 +113,8 @@ beard, each face feature). The total is always recomputed on the server.
 
 - One tab per body part, each tattoo with its picture, showing only the tattoos that exist for this body.
 - Clicking a tattoo adds or removes it, and the character turns to show that side.
-- **Take clothes off** shows the body without clothes, on screen only.
+- **Hide clothes** (on by default) shows the body without clothes, on screen only. Click it again to see the
+  tattoos with the clothes on.
 - Up to 40 tattoos per character (WHIP's limit).
 - **Price:** each new tattoo costs its body part's price (Settings → Appearance → **Prices: Tattoo**), or the price
   set for it in Admin Mode. Each removed tattoo costs the **removal** price.
@@ -183,6 +188,8 @@ Players with `whip_appearance.admin` see the **Admin** button on the store scree
 |---|---|
 | Category (a whole tab) | everyone, restricted to jobs or characters, on duty only, or blocked. **Back to default** returns to `Config.CategoryDefaults` |
 | Piece | the whole model or a single color; brands and company catalogs; who can buy it; or turn it into an **exclusive item** |
+| Barber and clinic tab (Cut, Beard, Makeup, Face Features…) | who can change it in that store: everyone, restricted to jobs or characters, on duty only, or blocked |
+| Haircut | who can get that haircut (per body); blocked haircuts disappear from the list |
 | Tattoo body part | who can get tattoos there |
 | Tattoos (batch) | click tattoo cards to pick them, then give them one price (empty: the body part's price) and one access rule |
 
@@ -198,10 +205,36 @@ The cards are under the **Appearance** category in the Director.
 |---|---|
 | Open Look Store | opens a clothing store, barber shop, clinic or tattoo studio for players wherever they are; the player or the house pays |
 | Goal: Change Look | (Goals) the scenario continues when a player of the run buys in a store; optional GPS and time limit |
-| Wear Outfit (disguise) | puts an outfit chosen in the card on the players, without saving; it comes off when the run ends |
-| Restore Saved Look | removes the disguise |
-| Open Outfit Wardrobe | opens a company's wardrobe (by job key) for players wherever they are; the minimum rank does not apply |
-| Wear Company Outfit | puts a wardrobe outfit on (by name, or the first that fits) without saving; it comes off when the run ends |
+| Goal: Wear an Outfit | (Goals) the scenario continues when a player of the run, or every player, is wearing the outfit set in the card; optional GPS (nearest clothing store or the company's wardrobe) and time limit |
+| Is Wearing Outfit? | goes Yes or No by what the players are wearing right now: the guard lets the uniform in |
+| Wear Outfit | puts an outfit picked in the card on the players: a disguise that comes off when the run ends, or kept as their clothes |
+| Wear Company Outfit | the same with an outfit from a company wardrobe (by name, or the first that fits) |
+| Take Off Pieces | takes the chosen pieces off (mask, hat, glasses, earrings, vest, bag, accessories, watch, bracelet), for a while or for good |
+| Restore Saved Look | removes disguises and pieces taken off: the saved look comes back |
+| Open Outfit Wardrobe | opens a wardrobe for players wherever they are, with outfits made in the card for this mission (no job needed) or a company's outfits (by job key) |
+
+**Mission wardrobes.** Open Outfit Wardrobe can hold its own outfits, made in the card: they exist only in that
+mission, with no job behind them. Press **Pick outfit in the store**, build the outfit, press **Save outfit** and give
+it a name (nothing is paid or saved). Players see those outfits in the wardrobe screen and wear one with 1 click: a
+disguise that comes off when the run ends (**Back to my clothes** takes it off sooner), or kept as their clothes with
+**Keep it**. A card that only has a job opens that company's wardrobe instead.
+
+**Setting the outfit in a card.** Goal: Wear an Outfit and Is Wearing Outfit? take the outfit three ways:
+
+- **Picked in this card:** press **Pick outfit in the store**, build the outfit and name it. An outfit fits only the
+  body it was made on, so make one male and one female version to cover everyone. Any of them counts.
+- **Any outfit of this mission's wardrobes:** any outfit of the Open Outfit Wardrobe cards of the same run counts.
+  Build the outfits once, in the wardrobe card.
+- **From a company wardrobe (job):** type the job key (e.g. `police`) and, optionally, the outfit's name. Empty name:
+  any outfit of that wardrobe counts.
+
+**What must match:** the main pieces (jacket, undershirt, pants and shoes) or every piece (masks, hats and
+accessories too), and optionally the colors. Disguises put on by Wear Outfit count as worn.
+
+**Keep it:** Open Outfit Wardrobe (mission outfits), Wear Outfit, Wear Company Outfit and Take Off Pieces have a
+**Keep it** switch. Off, the change is a
+disguise that comes off when the run ends. On, it is saved as the character's clothes, like clothes bought in a store.
+In a builder's Test it is always a disguise.
 
 **Dungeon Mode:** in the Object Viewer (G on a player), Dungeon Masters (`director.live`) and admins with `/w` on
 get "Open Clothing Store / Barber Shop / Plastic Surgery / Tattoo Studio (free)", "Open their company Wardrobe

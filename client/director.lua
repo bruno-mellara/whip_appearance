@@ -33,6 +33,15 @@ Whip.directorButton('whip_appearance.pickOutfit', {
     press = function(thing)
         local ok, why = Appearance.Client.pickOutfit(function(outfit)
             if outfit then
+                local body = outfit.model == Appearance.MODELS.female and 'female' or 'male'
+                local form = Whip.core:Input('Name this outfit', {
+                    { label = 'Name', type = 'text', placeholder = 'e.g. Security guard', default = '' },
+                })
+                local name = type(form) == 'table' and type(form[1]) == 'string' and form[1]:gsub('[%c<>]', ''):sub(1, 30) or ''
+                name = name:match('^%s*(.-)%s*$')
+                if name == '' then name = 'Outfit' end
+                outfit.name = name
+                outfit.text = ('%s (%s body)'):format(name, body)
                 local saved, err = thing:save(outfit)
                 if saved then
                     Whip.core:Notify(('Outfit stored in the card (%s).'):format(

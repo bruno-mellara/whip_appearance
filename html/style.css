@@ -416,6 +416,7 @@
 }
 .es-card.picked .es-card-price { display: none; }
 .es-tat-tools { margin-top: 8px; }
+.es-view { margin-top: 14px; }
 
 .es-admin-toggle { margin-left: 8px; align-self: center; }
 .es-admin-toggle.active { background: #e8b24a; color: rgb(20, 14, 4); }

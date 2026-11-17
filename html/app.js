@@ -605,9 +605,9 @@ function pieceTab(g, band, grid) {
         const name = nameOf(picName(p.kind, p.slot, item, 0));
 
         let badge = null, dim = false;
-        if (clothing) {
+        {
             const rule = ruleOf(p.kind, p.slot, d);
-            const sells = sellsHere(rule, name, item);
+            const sells = clothing ? sellsHere(rule, name, item) : true;
             if (S.adminMode) {
                 badge = rule && rule.blocked ? 'Blocked' : rule && rule.exclusive ? 'Exclusive' : rule && rule.restricted ? 'Restricted' : null;
                 if (!sells) { dim = true; badge = badge || (S.view && S.view.catalog ? 'Not in catalog' : 'Other brand'); }
@@ -658,6 +658,7 @@ function catTarget(g) {
     if (!g) return null;
     if (g.ui.type === 'component' || g.ui.type === 'prop') return { kind: g.ui.type, slot: g.ui.id };
     if (g.ui.type === 'tattoo') return { kind: 'tattoo', slot: g.ui.index };
+    if (g.ui.cat && !g.sexOnly) return { kind: g.ui.cat, slot: g.ui.catSlot };
     return null;
 }
 
@@ -832,46 +833,48 @@ function renderAdmin() {
     const box = $('es-admin');
     box.innerHTML = '';
     const g = groupByKey(S.tab);
-    const piece = g && (g.ui.type === 'component' || g.ui.type === 'prop');
+    const piece = g && (g.ui.type === 'component' || g.ui.type === 'prop' || g.ui.type === 'hair');
     if (S.adminMode && g && g.ui.type === 'tattoo') { tattooAdmin(box, g); return; }
     if (g && g.ui.type === 'outfits') { wardrobeAdmin(box); return; }
-    if (!S.adminMode || !piece) { box.classList.add('hidden'); return; }
+    const ct = catTarget(g);
+    if (!S.adminMode || !ct) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
-    const p = pieceState(g);
-    const { d, t } = p.get();
+    const hair = g.ui.type === 'hair';
+    const p = piece ? pieceState(g) : null;
+    const { d, t } = p ? p.get() : { d: -1, t: 0 };
     const m = meta(g);
     const redraw = () => { const k = S.focus && S.focus.dataset.key; renderAdmin(); if (k) focusAfterRender(k); };
     if (d < 0 && S.adminOpen === 'piece') S.adminOpen = null;
     box.classList.toggle('open', !!S.adminOpen);
 
-    const c = catOf(p.kind, p.slot);
+    const c = catOf(ct.kind, ct.slot);
     const catStatus = !c ? 'free' : c.blocked ? 'blocked' : c.restricted ? 'restricted' : 'open';
-    const modelRule = d >= 0 ? ruleOf(p.kind, p.slot, d) : null;
-    const colorRule = d >= 0 ? texRuleOf(p.kind, p.slot, d, t) : null;
+    const modelRule = p && d >= 0 ? ruleOf(p.kind, p.slot, d) : null;
+    const colorRule = p && d >= 0 && !hair ? texRuleOf(p.kind, p.slot, d, t) : null;
     const pieceStatus = ruleSummary(colorRule) ? `color ${t + 1} ${ruleSummary(colorRule)}` : (ruleSummary(modelRule) || 'no rule');
 
     const bar = el('<div class="es-admin-bar"><span class="es-admin-title">Admin</span></div>');
     const toggle = (label, which) => chip(label, S.adminOpen === which,
         () => { S.adminOpen = S.adminOpen === which ? null : which; redraw(); }, 'open:' + which);
     bar.appendChild(toggle(`${m.tab}: ${catStatus}${c && c.isDefault ? ' (default)' : ''}`, 'cat'));
-    if (d >= 0) bar.appendChild(toggle(`${m.one} ${d}: ${pieceStatus}`, 'piece'));
+    if (p && d >= 0) bar.appendChild(toggle(`${m.one} ${d}: ${pieceStatus}`, 'piece'));
     bar.appendChild(el(`<span class="es-admin-hint">${S.adminOpen ? 'click again to collapse' : 'click to edit'}</span>`));
     box.appendChild(bar);
 
     if (S.adminOpen === 'cat') {
 
-        const ck = `${p.kind}:${p.slot}`;
+        const ck = `${ct.kind}:${ct.slot}`;
         if (!S.catDraft || S.catDraft.key !== ck) S.catDraft = Object.assign(accessFrom(c), { key: ck });
         const status = !c ? 'free' : c.isDefault ? 'config default' : 'rule saved';
         box.appendChild(el(`<div class="es-admin-head"><span>Category</span><b>${esc(m.tab)}</b><em>${status} · both bodies</em></div>`));
-        accessEditor(box, S.catDraft, 'cat:', 'Who can buy this category', redraw);
+        accessEditor(box, S.catDraft, 'cat:', ct.kind === 'component' || ct.kind === 'prop' ? 'Who can buy this category' : 'Who can change this here', redraw);
         adminButtons(box, 'Save category', () => adminCategorySave(false), 'Back to default', !!(c && c.saved),
             () => adminCategorySave(true), 'cat');
         return;
     }
-    if (S.adminOpen !== 'piece') return;
+    if (S.adminOpen !== 'piece' || !p) return;
 
-    const texScope = S.scope === 'texture';
+    const texScope = !hair && S.scope === 'texture';
     const item = itemOf(p.kind, p.slot, d);
     const name = nameOf(picName(p.kind, p.slot, item, texScope ? t : 0));
     const rule = texScope ? colorRule : modelRule;
@@ -881,6 +884,11 @@ function renderAdmin() {
 
     box.appendChild(el(`<div class="es-admin-head"><span>Piece</span><b>${esc(m.one)} ${d}${texScope ? ` · color ${t + 1}` : ''}</b>`
         + `<em>${genderNow() === 'female' ? 'female body' : 'male body'}${rule ? ' · has a rule' : ''}</em></div>`));
+    if (hair) {
+        accessEditor(box, dr, 'piece:', 'Who can get this haircut', redraw);
+        adminButtons(box, 'Save haircut rule', () => adminSave(false), 'Remove rule', !!rule, () => adminSave(true), 'piece');
+        return;
+    }
     const scopeRow = el('<div class="es-chips"></div>');
     scopeRow.appendChild(chip('Whole model (all colors)', !texScope, () => { S.scope = 'model'; S.draft = null; redraw(); }, 'scope:model'));
     scopeRow.appendChild(chip(`Only color ${t + 1}`, texScope, () => { S.scope = 'texture'; S.draft = null; redraw(); }, 'scope:texture'));
@@ -936,10 +944,11 @@ async function adminSave(clear) {
     const p = pieceState(g);
     const { d, t } = p.get();
     const dr = S.draft;
-    const texScope = S.scope === 'texture';
+    const hair = g.ui.type === 'hair';
+    const texScope = !hair && S.scope === 'texture';
     const name = nameOf(picName(p.kind, p.slot, itemOf(p.kind, p.slot, d), texScope ? t : 0));
 
-    const rule = clear ? { brands: null } : Object.assign(accessRule(dr), {
+    const rule = clear ? { brands: null } : hair ? accessRule(dr) : Object.assign(accessRule(dr), {
         brands: dr.brands,
         exclusive: dr.exclusive ? { label: dr.exLabel, texture: t, picture: picRef(p.kind, p.slot, itemOf(p.kind, p.slot, d), t) } : null,
     });
@@ -976,6 +985,17 @@ function dropNotAllowed() {
     if (S.view && S.view.kind === 'tattoo') return dropTattoosNotAllowed();
     let dropped = false;
     for (const g of S.groups) {
+        if (g.ui.type === 'hair') {
+            const style = S.look.hair.style | 0;
+            const was = S.opened.hair ? S.opened.hair.style | 0 : style;
+            const r = ruleOf('component', 2, style);
+            if (style !== was && r && !r.allowed) {
+                S.look.hair.style = was;
+                S.look.hair.texture = S.opened.hair ? S.opened.hair.texture | 0 : 0;
+                dropped = true;
+            }
+            continue;
+        }
         if (g.ui.type !== 'component' && g.ui.type !== 'prop') continue;
         const p = pieceState(g);
         const { d, t } = p.get();
@@ -1274,10 +1294,23 @@ function faceTattoo(zone, t) {
     post('faceSide', { deg: tatAngle(zone, t ? t.facing : '') });
 }
 
-async function setUndressed(on) {
-    const res = await post('undress', { on });
-    S.undressed = res && 'undressed' in res ? !!res.undressed : on;
-    refreshBand();
+const VIEW_LABEL = { clothes: 'Hide clothes', head: 'Remove head props', torso: 'Hide clothes' };
+
+async function setView(key, on) {
+    const res = await post('view', { key, on });
+    S.hide = res && res.hide && typeof res.hide === 'object' ? res.hide : { ...S.hide, [key]: on };
+    renderView();
+    focusAfterRender('chip:view:' + key);
+}
+
+function renderView() {
+    const box = $('es-view');
+    box.innerHTML = '';
+    const views = Array.isArray(S.views) ? S.views : [];
+    for (const key of views) {
+        box.appendChild(chip(VIEW_LABEL[key] || key, !!(S.hide && S.hide[key]), () => setView(key, !(S.hide && S.hide[key])), 'view:' + key));
+    }
+    box.classList.toggle('hidden', views.length === 0);
 }
 
 const FACING_LABEL = { front: 'Front', back: 'Back', left: 'Left side', right: 'Right side', frontleft: 'Front, left',
@@ -1294,7 +1327,6 @@ function tattooBand(g, band) {
     const freeNow = free();
 
     const tools = el('<div class="es-chips es-tat-tools"></div>');
-    tools.appendChild(chip(S.undressed ? 'Put clothes on' : 'Take clothes off', !!S.undressed, () => setUndressed(!S.undressed), 'undress'));
     if (inZone > 0 && !S.adminMode) {
         tools.appendChild(chip('Remove all from this part', false, () => {
             const keys = new Set(list.map((t) => t.key));
@@ -1558,14 +1590,14 @@ function wardrobeBand(g, band) {
         else state = o.allowed ? 'Click to wear · free' : 'Your rank cannot wear this outfit';
         band.appendChild(bandTop({
             hero: heroOf({ img: wPic(o), glyph: 'jacket' }), title: o.name,
-            sub: `${S.w.jobName} · ${o.minLevel ? 'from ' + wRoleName(o.minLevel) : 'all ranks'}`,
+            sub: S.w.custom ? `${S.w.jobName} · this mission` : `${S.w.jobName} · ${o.minLevel ? 'from ' + wRoleName(o.minLevel) : 'all ranks'}`,
             meta: state,
         }));
         return;
     }
     const n = wOutfits().length;
     band.appendChild(bandTop({
-        hero: heroOf({ glyph: 'jacket' }), title: `Wardrobe: ${S.w.jobName}`,
+        hero: heroOf({ glyph: 'jacket' }), title: S.w.custom ? S.w.jobName : `Wardrobe: ${S.w.jobName}`,
         sub: n === 1 ? '1 outfit for your body' : `${n} outfits for your body`,
         meta: S.w.hasOwn ? 'You are in an outfit: <b>Back to my clothes</b> gives yours back.'
             : 'Click an outfit to wear it. Your clothes are kept.',
@@ -2056,7 +2088,8 @@ function load(d) {
     if ('pictures' in d) S.pictures = d.pictures || null;
     if (d.quote) S.quote = d.quote;
     if ('tattooList' in d) setTattooList(d.tattooList);
-    if ('undressed' in d) S.undressed = !!d.undressed;
+    if ('hide' in d) S.hide = d.hide && typeof d.hide === 'object' && !Array.isArray(d.hide) ? d.hide : {};
+    if ('views' in d) S.views = Array.isArray(d.views) ? d.views : [];
     if (typeof d.removePrice === 'number') S.removePrice = d.removePrice;
     S.texCount = {};
     if (!visibleGroups().some((g) => g.key === S.tab)) S.tab = (visibleGroups()[0] || {}).key;
@@ -2065,6 +2098,7 @@ function load(d) {
 function renderAll() {
     renderGroups();
     renderRail();
+    renderView();
     renderTab(false);
     renderBill();
     renderHints();

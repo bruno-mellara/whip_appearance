@@ -269,6 +269,27 @@ function Preview.nothingFor(ped, slot)
     return 0
 end
 
+local HEAD_COMPONENTS = { 1 }
+local HEAD_PROPS = { 0, 1 }
+local TORSO_COMPONENTS = { 3, 8, 11 }
+
+function Preview.hidden(ped, look, hide)
+    if hide.clothes then return Preview.undressed(ped, look) end
+    local out = Appearance.copy(look)
+    out.components = type(out.components) == 'table' and out.components or {}
+    out.props = type(out.props) == 'table' and out.props or {}
+    local slots = {}
+    if hide.head then for _, i in ipairs(HEAD_COMPONENTS) do slots[#slots + 1] = i end end
+    if hide.torso then for _, i in ipairs(TORSO_COMPONENTS) do slots[#slots + 1] = i end end
+    for _, i in ipairs(slots) do
+        out.components[tostring(i)] = { drawable = Preview.nothingFor(ped, i), texture = 0 }
+    end
+    if hide.head then
+        for _, i in ipairs(HEAD_PROPS) do out.props[tostring(i)] = { drawable = -1, texture = 0 } end
+    end
+    return out
+end
+
 function Preview.undressed(ped, look)
     local out = Appearance.copy(look)
     out.components = type(out.components) == 'table' and out.components or {}

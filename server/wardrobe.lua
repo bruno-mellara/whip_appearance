@@ -139,7 +139,21 @@ local function listFor(src, job, o)
     return list
 end
 
+local function customView(o, title)
+    local list = {}
+    for id, x in ipairs(o.custom) do
+        list[#list + 1] = { id = id, name = x.name, model = x.model, minLevel = 0, components = x.components, props = x.props,
+                            allowed = true }
+    end
+    return {
+        kind = 'wardrobe', title = title, free = true, test = false, allowBank = false,
+        wardrobe = { custom = true, jobName = title, outfits = list, roles = {}, canManage = false, hasOwn = o.hasOwn == true,
+                     max = #list },
+    }
+end
+
 local function viewFor(src, o, title)
+    if o.custom then return customView(o, title or 'Wardrobe') end
     local player = exports.whip_core:GetPlayer(src)
     local manage, admin = canManage(src, o.job), AppearanceRules.isAdmin(src)
     return {
@@ -162,6 +176,25 @@ function AppearanceWardrobe.openFor(src, job, opts)
     if type(job) ~= 'string' or job == '' then return false, 'no job' end
     Opened[src] = { job = job:lower(), session = player.session, free = true }
     TriggerClientEvent('whip_appearance:client:wardrobe', src, viewFor(src, Opened[src], opts.title))
+    return true
+end
+
+function AppearanceWardrobe.openCustom(src, opts)
+    local player = Whip.core:GetPlayer(src)
+    if type(player) ~= 'table' then return false, 'the player is not on a character' end
+    if AppearanceServer.isOpen(src) or Opened[src] then return false, 'the player is already in a store or wardrobe' end
+    local list = {}
+    for _, x in ipairs(type(opts.outfits) == 'table' and opts.outfits or {}) do
+        if type(x) == 'table' and type(x.model) == 'string' then
+            list[#list + 1] = { name = tidyName(x.name) or ('Outfit ' .. (#list + 1)), model = x.model,
+                                components = type(x.components) == 'table' and x.components or {},
+                                props = type(x.props) == 'table' and x.props or {} }
+        end
+    end
+    if #list == 0 then return false, 'no outfits' end
+    Opened[src] = { custom = list, session = player.session, free = true, hasOwn = opts.hasOwn,
+                    onWear = opts.onWear, onRestore = opts.onRestore }
+    TriggerClientEvent('whip_appearance:client:wardrobe', src, customView(Opened[src], opts.title or 'Wardrobe'))
     return true
 end
 
@@ -204,6 +237,20 @@ local function onWear(source, player, id)
     local o, why = current(source)
     if not o then return false, why end
     if o.busy then return false, 'Please wait.' end
+    if o.custom then
+        local c = o.custom[id]
+        if not c then return false, 'That outfit no longer exists.' end
+        local saved, err = AppearanceServer.savedLook(source)
+        if not saved then return false, err end
+        if saved.model ~= c.model then
+            return false, c.model == Appearance.MODELS.female and 'This outfit is for a female body.' or 'This outfit is for a male body.'
+        end
+        o.busy = true
+        local ok, res = pcall(o.onWear, source, c, player)
+        o.busy = false
+        if not ok or not res then return false, 'Could not put the outfit on.' end
+        return { ok = true, name = c.name }
+    end
     local x = outfits[o.job] and outfits[o.job][id]
     if not x then return false, 'That outfit no longer exists.' end
     if not o.free and not AppearanceRules.isAdmin(source) and (roleLevel(source, o.job) or -1) < (x.minLevel or 0) then
@@ -230,6 +277,13 @@ local function onRestore(source, player)
     local o, why = current(source)
     if not o then return false, why end
     if o.busy then return false, 'Please wait.' end
+    if o.custom then
+        o.busy = true
+        local ok, res = pcall(o.onRestore, source, player)
+        o.busy = false
+        if not ok or not res then return false, 'Could not change.' end
+        return { ok = true }
+    end
     local own = ownOf(player.charId)
     if not own then return false, 'You are already in your own clothes.' end
     local saved, err = AppearanceServer.savedLook(source)
@@ -251,6 +305,7 @@ end
 local function onSave(source, player, id, name, minLevel, outfit, fromWorn)
     local o, why = current(source)
     if not o then return false, why end
+    if o.custom then return false, 'This wardrobe is set by the Director.' end
     if not canManage(source, o.job) then return false, 'Only company management (or staff) can build outfits.' end
     local nameOk = tidyName(name)
     if not nameOk then return false, 'Give the outfit a name.' end
@@ -302,6 +357,7 @@ end
 local function onDelete(source, player, id)
     local o, why = current(source)
     if not o then return false, why end
+    if o.custom then return false, 'This wardrobe is set by the Director.' end
     if not canManage(source, o.job) then return false, 'Only company management (or staff) can delete outfits.' end
     local x = outfits[o.job] and outfits[o.job][id]
     if not x then return false, 'That outfit no longer exists.' end

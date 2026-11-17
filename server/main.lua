@@ -198,6 +198,8 @@ local function onBuy(source, player, look, method, shown)
         allowedOk, notAllowed = AppearanceRules.checkTattoos(source, player, saved, final)
         if not allowedOk then return false, notAllowed end
     end
+    allowedOk, notAllowed = AppearanceRules.checkGroups(source, player, s.kind, saved, final)
+    if not allowedOk then return false, notAllowed end
 
     local total = (s.free or s.test) and 0 or quote.total
 

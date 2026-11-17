@@ -104,6 +104,14 @@ Appearance.Groups = {
     },
 }
 
+Appearance.CATEGORY_KINDS = { 'barber', 'surgery' }
+for _, kind in ipairs(Appearance.CATEGORY_KINDS) do
+    for i, g in ipairs(Appearance.Groups[kind]) do
+        g.ui.cat = kind
+        g.ui.catSlot = i
+    end
+end
+
 local tattooIndex = nil
 local tattooCount = 0
 
@@ -328,6 +336,35 @@ function Appearance.outfitOf(look)
         end
     end
     return out
+end
+
+Appearance.OUTFIT_MAIN = { c11 = true, c8 = true, c4 = true, c6 = true }
+
+function Appearance.outfitMatches(look, outfit, opts)
+    if type(look) ~= 'table' or type(outfit) ~= 'table' then return false end
+    if outfit.model and look.model ~= outfit.model then return false end
+    opts = opts or {}
+    local checked = 0
+    for _, g in ipairs(Appearance.Groups.clothing) do
+        if opts.all or Appearance.OUTFIT_MAIN[g.key] then
+            local path = g.paths[1]
+            local want = getPath(outfit, path)
+            if type(want) == 'table' then
+                local none = g.ui.type == 'prop' and -1 or 0
+                local have = getPath(look, path)
+                local wd = math.floor(tonumber(want.drawable) or none)
+                local hd = type(have) == 'table' and math.floor(tonumber(have.drawable) or none) or none
+                if wd ~= hd then return false end
+                if opts.colors and wd >= 0 then
+                    local wt = math.floor(tonumber(want.texture) or 0)
+                    local ht = type(have) == 'table' and math.floor(tonumber(have.texture) or 0) or 0
+                    if wt ~= ht then return false end
+                end
+                checked = checked + 1
+            end
+        end
+    end
+    return checked > 0
 end
 
 function Appearance.wear(look, outfit)

@@ -29,7 +29,16 @@ local function groupOf(kind, slot)
     return nil
 end
 
+local HAIR_SLOT = 2
+
+local function isCategoryKind(kind) return kind == 'barber' or kind == 'surgery' end
+
 local function slotLabel(kind, slot)
+    if isCategoryKind(kind) then
+        local g = Appearance.Groups[kind][slot]
+        return g and g.label or 'Category'
+    end
+    if kind == 'component' and slot == HAIR_SLOT then return 'Haircut' end
     if kind == 'tattoo' then
         local g = Appearance.Groups.tattoo[slot]
         return g and ('Tattoos: ' .. g.label) or 'Tattoos'
@@ -45,7 +54,7 @@ end
 local function catRule(kind, slot)
     local saved = cats[catKeyOf(kind, slot)]
     if saved then return saved, false end
-    if kind == 'tattoo' then return nil, false end
+    if kind ~= 'component' and kind ~= 'prop' then return nil, false end
     local d = (Config.CategoryDefaults or {})[groupKey(kind, slot)]
     if type(d) == 'table' then
         return { blocked = d.blocked == true, jobs = d.jobs, chars = d.chars, onDuty = d.onDuty == true }, true
@@ -98,6 +107,9 @@ function AppearanceRules.view(src)
     end
     for _, g in ipairs(Appearance.Groups.clothing) do addCategory(g.ui.type, g.ui.id) end
     for i = 1, #Appearance.TATTOO_ZONES do addCategory('tattoo', i) end
+    for _, kind in ipairs(Appearance.CATEGORY_KINDS) do
+        for i = 1, #Appearance.Groups[kind] do addCategory(kind, i) end
+    end
 
     local tattoos = {}
     for key, r in pairs(tats) do
@@ -159,6 +171,30 @@ function AppearanceRules.checkLook(src, player, s, saved, final)
             end
             local brandRule = (r and r.brands) and r or (rules[keyOf(gender, kind, slot, d, ALL)])
             if not sellsIn(brandRule, s.brand) then return false, ('%s %d is not sold in this store.'):format(g.label, d) end
+        end
+    end
+    return true
+end
+
+function AppearanceRules.checkGroups(src, player, kind, saved, final)
+    if not isCategoryKind(kind) then return true end
+    local changed = {}
+    for _, l in ipairs(Appearance.quote(kind, saved, final).lines) do changed[l.key] = true end
+    for i, g in ipairs(Appearance.Groups[kind]) do
+        if changed[g.key] then
+            local c = catRule(kind, i)
+            if c and not allowed(src, player.charId, c) then
+                return false, ('%s is not available to you here.'):format(g.label)
+            end
+        end
+    end
+    if kind == 'barber' and changed.hair then
+        local gender = final.model == Appearance.MODELS.female and 'female' or 'male'
+        local style = final.hair and tonumber(final.hair.style)
+        local was = saved.hair and tonumber(saved.hair.style)
+        local r = style and style ~= was and rules[keyOf(gender, 'component', HAIR_SLOT, style, ALL)] or nil
+        if r and not allowed(src, player.charId, r) then
+            return false, ('Haircut %d is not available to you.'):format(style)
         end
     end
     return true
@@ -340,10 +376,18 @@ local function access(rule, jobsKnown)
     }
 end
 
-local function slotOf(t)
-    local kind = (t.kind == 'prop' or t.kind == 'component' or t.kind == 'tattoo') and t.kind or nil
+local function slotOf(t, forPiece)
+    local kind = (t.kind == 'prop' or t.kind == 'component' or t.kind == 'tattoo' or isCategoryKind(t.kind)) and t.kind or nil
     local slot = math.tointeger(tonumber(t.slot))
     if not kind or not slot then return nil end
+    if isCategoryKind(kind) then
+        if forPiece or slot < 1 or slot > #Appearance.Groups[kind] then return nil end
+        return kind, slot
+    end
+    if kind == 'component' and slot == HAIR_SLOT then
+        if not forPiece then return nil end
+        return kind, slot
+    end
     if kind == 'tattoo' then
         if slot < 1 or slot > #Appearance.TATTOO_ZONES then return nil end
         return kind, slot
@@ -362,9 +406,15 @@ local function onSave(source, _, piece, rule)
     if not isAdmin(source) then return false, 'Only a store admin can do that.' end
     if type(piece) ~= 'table' or type(rule) ~= 'table' then return false, 'Invalid data.' end
     local gender = piece.gender == 'female' and 'female' or (piece.gender == 'male' and 'male' or nil)
-    local kind, slot = slotOf(piece)
+    local kind, slot = slotOf(piece, true)
+    if kind == 'tattoo' then kind = nil end
     local drawable = math.tointeger(tonumber(piece.drawable))
     local texture = math.tointeger(tonumber(piece.texture)) or ALL
+    local hair = kind == 'component' and slot == HAIR_SLOT
+    if hair then
+        texture = ALL
+        rule.brands, rule.exclusive = nil, nil
+    end
     if not gender or not kind or not drawable or drawable < 0 or drawable > 4095 or texture < ALL or texture > 127 then
         return false, 'Invalid piece.'
     end

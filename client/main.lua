@@ -5,8 +5,20 @@ local function notify(text, kind) Whip.core:Notify(text, kind or 'info') end
 
 local pending, applying = nil, false
 
+local VIEWS = { tattoo = { 'clothes' }, barber = { 'head', 'torso' } }
+
+local function viewAllowed(kind, key)
+    for _, k in ipairs(VIEWS[kind] or {}) do if k == key then return true end end
+    return false
+end
+
+local function anyHidden(hide)
+    for _, on in pairs(hide or {}) do if on then return true end end
+    return false
+end
+
 local function shown(look)
-    if S and S.undressed then return Preview.undressed(PlayerPedId(), look) end
+    if S and anyHidden(S.hide) then return Preview.hidden(PlayerPedId(), look, S.hide) end
     return look
 end
 
@@ -66,7 +78,8 @@ local function pageData()
         icons = icons,
         pictures = icons and Preview.pictures(icons.gender) or nil,
         tattooList = S.view.kind == 'tattoo' and Preview.tattoos(ped) or nil,
-        undressed = S.undressed == true,
+        hide = S.hide,
+        views = VIEWS[S.view.kind] or {},
         removePrice = Appearance.priceOf('tattoo', 'remove'),
         quote = quote(),
     }
@@ -119,9 +132,9 @@ local function open(view, opts)
     local ped = PlayerPedId()
     local base = Preview.complete(ped, saved)
     S = { view = view, mode = opts.mode or 'shop', onPick = opts.onPick, saved = saved, base = base, look = Appearance.copy(base),
-          undressed = view.kind == 'tattoo' }
+          hide = { clothes = view.kind == 'tattoo' } }
     Preview.reset()
-    if S.undressed then queueApply(S.look) end
+    if anyHidden(S.hide) then queueApply(S.look) end
 
     MaskFix.pause(view.kind ~= 'clothing' and view.kind ~= 'wardrobe')
     MaskFix.update(nil, false)
@@ -180,7 +193,7 @@ local function close(revert, tellServer)
         while applying do Wait(0) end
         if revert then
             revertTo(s.base)
-        elseif s.undressed then
+        elseif anyHidden(s.hide) then
             Preview.apply(PlayerPedId(), s.look, true)
         end
         MaskFix.update(nil, false)
@@ -429,11 +442,11 @@ cb('faceSide', function(data)
     if S then Cam.faceSide(math.max(-180.0, math.min(180.0, tonumber(data.deg) or 0.0))) end
 end)
 
-cb('undress', function(data)
-    if not S or S.view.kind ~= 'tattoo' then return end
-    S.undressed = data.on == true
+cb('view', function(data)
+    if not S or type(data.key) ~= 'string' or not viewAllowed(S.view.kind, data.key) then return end
+    S.hide[data.key] = data.on == true
     queueApply(S.look)
-    return { undressed = S.undressed }
+    return { hide = S.hide }
 end)
 
 cb('orbit', function(data)
