@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Style</title>
+
+<link rel="stylesheet" href="https://cfx-nui-whip_core/html/css/fonts.css">
+<link rel="stylesheet" href="https://cfx-nui-whip_core/html/css/base.css">
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cfx-nui-whip_core/html/js/assets-index.js"></script>
+<script src="https://cfx-nui-whip_core/html/js/assets.js"></script>
+</head>
+<body>
+<div id="es" class="hidden">
+    <div class="es-scale">
+        <aside class="es-left">
+            <div class="es-head">
+                <div class="es-title">
+                    <span class="es-title-name" id="es-title"></span>
+                    <span class="es-title-sub" id="es-sub"></span>
+                    <button class="es-subtab es-admin-toggle hidden" id="es-admin-toggle" data-nav="chip" data-key="chip:admin">Admin</button>
+                </div>
+                <nav id="es-groups"></nav>
+            </div>
+            <nav id="es-rail"></nav>
+            <div id="es-subtabs"></div>
+            <section id="es-band"></section>
+            <section id="es-admin" class="hidden"></section>
+            <div id="es-grid"></div>
+            <div class="es-left-foot">
+                <div id="es-hints"></div>
+            </div>
+        </aside>
+        <div id="es-stage"></div>
+        <div class="es-footer">
+            <div class="es-bill">
+                <div class="es-bill-lines" id="es-lines"></div>
+                <div class="es-bill-total"><span id="es-total-label">Total</span><strong id="es-total">$0</strong></div>
+            </div>
+            <div class="es-buttons" id="es-buttons"></div>
+        </div>
+        <div id="es-confirm" class="hidden">
+            <div class="es-confirm-box">
+                <div class="es-confirm-title">Leave without paying?</div>
+                <p>Your changes will be undone.</p>
+                <div class="es-confirm-row">
+                    <button class="es-btn ghost" id="es-confirm-no" data-nav>Keep going</button>
+                    <button class="es-btn danger" id="es-confirm-yes" data-nav>Leave</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
