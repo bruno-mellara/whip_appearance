@@ -118,7 +118,7 @@ local function savedLook()
     local look = type(me) == 'table' and type(me.metadata) == 'table' and me.metadata.appearance or nil
     if type(look) ~= 'table' or not look.model then return nil end
     if GetEntityModel(PlayerPedId()) ~= GetHashKey(look.model) then return nil end
-    return Appearance.copy(look)
+    return Appearance.readHair(Appearance.copy(look))
 end
 
 local function open(view, opts)

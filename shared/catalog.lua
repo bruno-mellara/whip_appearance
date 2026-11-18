@@ -177,6 +177,27 @@ local function same(a, b)
 end
 Appearance.same = same
 
+function Appearance.readHair(look)
+    if type(look) ~= 'table' then return look end
+    local c = type(look.components) == 'table' and look.components['2'] or nil
+    if type(c) == 'table' and tonumber(c.drawable) then
+        look.hair = type(look.hair) == 'table' and look.hair or {}
+        look.hair.style = math.floor(tonumber(c.drawable))
+        look.hair.texture = math.floor(tonumber(c.texture) or 0)
+    end
+    return look
+end
+
+function Appearance.syncHair(look)
+    if type(look) ~= 'table' or type(look.hair) ~= 'table' then return look end
+    look.components = type(look.components) == 'table' and look.components or {}
+    look.components['2'] = {
+        drawable = math.floor(tonumber(look.hair.style) or 0),
+        texture = math.floor(tonumber(look.hair.texture) or 0),
+    }
+    return look
+end
+
 local function getPath(t, path)
     for i = 1, #path do
         if type(t) ~= 'table' then return nil end

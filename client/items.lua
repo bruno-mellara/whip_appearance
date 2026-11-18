@@ -7,6 +7,7 @@ local function change(p, drawable, texture)
     local look = Preview.complete(ped, saved)
     local store = p.kind == 'prop' and look.props or look.components
     store[tostring(p.slot)] = { drawable = drawable, texture = texture }
+    Appearance.syncHair(look)
     Preview.apply(ped, look)
     TriggerServerEvent('whip_core:server:saveAppearance', look)
     Anims.now(p.key)

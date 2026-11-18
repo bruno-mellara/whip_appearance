@@ -27,11 +27,12 @@ local function savedLook(src)
     if type(look) ~= 'table' or not look.model then
         return nil, 'Your character has no saved look yet. Finish creating your character first.'
     end
-    return look
+    return Appearance.readHair(Appearance.copy(look))
 end
 AppearanceServer.savedLook = savedLook
 
 function AppearanceServer.saveLook(src, session, final)
+    Appearance.syncHair(final)
     TriggerClientEvent('whip_appearance:client:saveLook', src, final)
     local deadline = GetGameTimer() + SAVE_WAIT_MS
     while GetGameTimer() < deadline do
